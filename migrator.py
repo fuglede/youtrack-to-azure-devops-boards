@@ -19,11 +19,14 @@ CustomFieldHandler = Callable[[Dict[str, Any]], Iterable[SetFieldOperation]]
 
 
 class Migrator:
-    def __init__(self, token_azdo: str, token_youtrack: str, yt_base, ado_organization, ado_project):
+    def __init__(self, token_azdo, yt_base, ado_organization, ado_project, token_youtrack=None):
         self.yt_base = yt_base
         self.ado_base = f"{ado_organization}/{ado_project}/_apis/wit"
         self.auth_header_azdo = self._authorization_header_azdo(token_azdo)
-        self.auth_header_youtrack = self._authorization_header_youtrack(token_youtrack)
+        if(token_youtrack != None and token_youtrack != ""):
+            self.auth_header_youtrack = self._authorization_header_youtrack(token_youtrack)
+        else:
+            self.auth_header_youtrack = None
 
     @staticmethod
     def _authorization_header_azdo(pat: str) -> str:
@@ -56,7 +59,10 @@ class Migrator:
             "comments(created,author(login),text),attachments(base64Content,name)"
         )
         yt_url = f"{self.yt_base}/api/issues/{yt_id}?fields={yt_fields}"
-        yt_data = requests.get(yt_url, verify=False, headers={"Authorization": self.auth_header_youtrack}).json()
+        headers = {}
+        if(self.auth_header_youtrack != None):
+            headers["Authorization"] = self.auth_header_youtrack
+        yt_data = requests.get(yt_url, verify=False, headers=headers).json()
         return yt_data
 
     @staticmethod
@@ -187,14 +193,15 @@ class Migrator:
         custom_field_handler: CustomFieldHandler,
         issue_count_upper_limit: int = 10000,
     ):
+        headers = {}
+        if(self.auth_header_youtrack != None):
+            headers["Authorization"] = self.auth_header_youtrack
         issues = requests.get(
             f"{self.yt_base}/api/issues?fields=idReadable"
             f"&$top={issue_count_upper_limit}"
             f"&query=project:+{yt_project}",
             verify=False,
-            headers={
-                "Authorization": self.auth_header_youtrack
-            }
+            headers=headers
         ).json()
         for i, issue in enumerate(issues):
             yt_id = issue["idReadable"]
