@@ -19,17 +19,23 @@ CustomFieldHandler = Callable[[Dict[str, Any]], Iterable[SetFieldOperation]]
 
 
 class Migrator:
-    def __init__(self, token_azdo, yt_base, ado_organization, ado_project, token_youtrack=None):
+    def __init__(
+        self,
+        token_azo: str,
+        yt_base: str,
+        ado_organization: str,
+        ado_project: str,
+        token_youtrack: Optional[str] = None,
+    ):
         self.yt_base = yt_base
         self.ado_base = f"{ado_organization}/{ado_project}/_apis/wit"
-        self.auth_header_azdo = self._authorization_header_azdo(token_azdo)
-        if(token_youtrack != None and token_youtrack != ""):
-            self.auth_header_youtrack = self._authorization_header_youtrack(token_youtrack)
-        else:
-            self.auth_header_youtrack = None
+        self.auth_header_ado = self._authorization_header_ado(token_azo)
+        self.auth_header_youtrack = (
+            token_youtrack and self._authorization_header_youtrack(token_youtrack)
+        )
 
     @staticmethod
-    def _authorization_header_azdo(pat: str) -> str:
+    def _authorization_header_ado(pat: str) -> str:
         return "Basic " + base64.b64encode(f":{pat}".encode("ascii")).decode("ascii")
 
     @staticmethod
@@ -60,7 +66,7 @@ class Migrator:
         )
         yt_url = f"{self.yt_base}/api/issues/{yt_id}?fields={yt_fields}"
         headers = {}
-        if(self.auth_header_youtrack != None):
+        if self.auth_header_youtrack:
             headers["Authorization"] = self.auth_header_youtrack
         yt_data = requests.get(yt_url, verify=False, headers=headers).json()
         return yt_data
@@ -74,9 +80,7 @@ class Migrator:
         return self._build_custom_field_dict(yt_data)
 
     def migrate_issue(
-        self,
-        yt_id: str,
-        custom_field_handler: CustomFieldHandler,
+        self, yt_id: str, custom_field_handler: CustomFieldHandler,
     ):
         create_ops = []  # Operations to perform on new Azure DevOps work item
         yt_data = self._youtrack_issue_data(yt_id)
@@ -106,7 +110,7 @@ class Migrator:
         res = requests.post(
             f"{self.ado_base}/workitems/$Task?api-version=6.0",
             headers={
-                "Authorization": self.auth_header_azdo,
+                "Authorization": self.auth_header_ado,
                 "Content-Type": "application/json-patch+json",
             },
             json=create_ops,
@@ -120,7 +124,7 @@ class Migrator:
         requests.patch(
             f"{self.ado_base}/workitems/{work_item_id}?api-version=6.0",
             headers={
-                "Authorization": self.auth_header_azdo,
+                "Authorization": self.auth_header_ado,
                 "Content-Type": "application/json-patch+json",
             },
             json=delayed_ops,
@@ -141,7 +145,7 @@ class Migrator:
                 f"{self.ado_base}/workItems/{work_item_id}"
                 "/comments?api-version=6.0-preview.3",
                 headers={
-                    "Authorization": self.auth_header_azdo,
+                    "Authorization": self.auth_header_ado,
                     "Content-Type": "application/json",
                 },
                 json={"text": text},
@@ -158,7 +162,7 @@ class Migrator:
             res = requests.post(
                 f"{self.ado_base}/attachments?api-version=6.0",
                 headers={
-                    "Authorization": self.auth_header_azdo,
+                    "Authorization": self.auth_header_ado,
                     "Content-Type": "application/octet-stream",
                 },
                 data=decoded,
@@ -181,7 +185,7 @@ class Migrator:
             requests.patch(
                 f"{self.ado_base}/workItems/{work_item_id}?api-version=6.0",
                 headers={
-                    "Authorization": self.auth_header_azdo,
+                    "Authorization": self.auth_header_ado,
                     "Content-Type": "application/json-patch+json",
                 },
                 json=attachment_data,
@@ -194,14 +198,14 @@ class Migrator:
         issue_count_upper_limit: int = 10000,
     ):
         headers = {}
-        if(self.auth_header_youtrack != None):
+        if self.auth_header_youtrack:
             headers["Authorization"] = self.auth_header_youtrack
         issues = requests.get(
             f"{self.yt_base}/api/issues?fields=idReadable"
             f"&$top={issue_count_upper_limit}"
             f"&query=project:+{yt_project}",
             verify=False,
-            headers=headers
+            headers=headers,
         ).json()
         for i, issue in enumerate(issues):
             yt_id = issue["idReadable"]
