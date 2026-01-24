@@ -1,3 +1,5 @@
+Note: This repository has been moved to https://codeberg.org/fuglede/youtrack-to-azure-devops-boards
+
 # YouTrack to Azure DevOps issue migration
 
 This project contains a script for migrating issues from YouTrack to Azure DevOps
@@ -59,4 +61,5 @@ migrator.migrate_project('AB', custom_field_handler, issue_count_upper_limit=500
 ```
 
 where here, `number_of_issues` is simply any number greater than the number of issues
+
 in the project.
